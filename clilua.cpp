@@ -26,9 +26,9 @@ void parse_json (lua_State *L, json &res) {
     res = std::string (s, len);
     return;
   } else if (lua_istable (L, -1)) {
-    
+
     bool arr = true;
-    int size = 0;
+    int size = 1;
 
     lua_pushnil (L);
     while (lua_next (L, -2)) {
@@ -44,18 +44,18 @@ void parse_json (lua_State *L, json &res) {
     } else {
       res = json::object ();
     }
-   
+
     lua_pushnil (L);
     while (lua_next (L, -2)) {
       if (arr) {
-        int x = (int)lua_tointeger (L, -2);
+        int x = (int)lua_tointeger (L, -2) -1;
         parse_json (L, res[x]);
         lua_pop (L, 1);
       } else {
         size_t len;
 
         if (lua_type (L, -2) == LUA_TNUMBER) {
-          auto x = lua_tointeger (L, -2);
+          auto x = lua_tointeger (L, -2) -1;
           std::string k = std::to_string (x);
           parse_json (L, res[k]);
         } else {
@@ -83,20 +83,20 @@ void push_json (lua_State *L, json &j) {
   } else if (j.is_number_integer ()) {
     auto v = j.get<td::int64>();
 
-    if (v == static_cast<int>(v)) {
-      lua_pushnumber (L, static_cast<int>(v));
+    if (v == static_cast<lua_Integer>(v)) {
+      lua_pushinteger (L, static_cast<lua_Integer>(v));
     } else {
       std::string s = std::to_string (v);
       lua_pushlstring (L, s.c_str (), s.length ());
     }
   } else if (j.is_number_float ()) {
-    auto v = j.get<double>();
+    auto v = j.get<lua_Number>();
     lua_pushnumber (L, v);
   } else if (j.is_array ()) {
     lua_newtable (L);
-    int p = 0;
+    lua_Integer p = 1;
     for (auto it = j.begin (); it != j.end (); it ++, p ++) {
-      lua_pushnumber (L, p);
+      lua_pushinteger (L, p);
       push_json (L, *it);
       lua_settable (L, -3);
     }
@@ -119,18 +119,18 @@ int lua_parse_function (lua_State *L) {
     lua_pushboolean (L, 0);
     return 1;
   }
-  
+
   int a1 = luaL_ref (L, LUA_REGISTRYINDEX);
   int a2 = luaL_ref (L, LUA_REGISTRYINDEX);
-  
+
   json j;
   parse_json (L, j);
   lua_pop (L, 1);
 
   auto cmd = j.dump ();
-  
+
   LOG(INFO) << cmd << "\n";
-  
+
   auto res = td::json_decode (cmd);
 
   if (res.is_ok ()) {
@@ -138,7 +138,7 @@ int lua_parse_function (lua_State *L) {
     td::tl_object_ptr<td::td_api::Function> object;
 
     auto r = from_json(object, as_json_value);
-  
+
 
     if (r.is_ok ()) {
       CliClient::instance_->send_request(std::move (object), std::make_unique<TdLuaCallback>(a1, a2, CliLua::instance_));
@@ -150,7 +150,7 @@ int lua_parse_function (lua_State *L) {
       return 1;
     }
   }
-  
+
   LOG(ERROR) << "FAILED TO PARSE LUA: " << res.move_as_error () << "\n";
 
   lua_pushboolean (L, 0);
@@ -159,10 +159,10 @@ int lua_parse_function (lua_State *L) {
 
 CliLua::CliLua (std::string file) {
   instance_ = this;
-  
+
   luaState_ = luaL_newstate ();
   luaL_openlibs (luaState_);
-  
+
   lua_register (luaState_, "tdbot_function", lua_parse_function);
 
   int r = luaL_dofile (luaState_, file.c_str ());
@@ -179,7 +179,7 @@ void CliLua::update (std::string update) {
   lua_getglobal (luaState_, "tdbot_update_callback");
 
   push_json (luaState_, j);
-  
+
   int r = lua_pcall (luaState_, 1, 0, 0);
 
   if (r) {
@@ -187,7 +187,7 @@ void CliLua::update (std::string update) {
   }
 
 }
-  
+
 void TdLuaCallback::on_result (td::tl_object_ptr<td::td_api::Object> result) {
   std::string v = td::json_encode<std::string>(td::ToJson (result));
 
@@ -201,7 +201,7 @@ void CliLua::result (std::string update, int a1, int a2) {
 
   lua_rawgeti (luaState_, LUA_REGISTRYINDEX, a2);
   lua_rawgeti (luaState_, LUA_REGISTRYINDEX, a1);
- 
+
   push_json (luaState_, j);
 
   int r = lua_pcall (luaState_, 2, 0, 0);
@@ -213,4 +213,3 @@ void CliLua::result (std::string update, int a1, int a2) {
     LOG(FATAL) << "lua: " <<  lua_tostring (luaState_, -1) << "\n";
   }
 }
-  
