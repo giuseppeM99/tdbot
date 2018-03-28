@@ -20,7 +20,7 @@
 #include "cliclient.hpp"
 #include "lua.h"
 
-#define CONFIG_DIRECTORY ".telegram-bot" 
+#define CONFIG_DIRECTORY ".telegram-bot"
 #define CONFIG_DIRECTORY_MODE 0700
 
 std::string config_filename;
@@ -54,7 +54,7 @@ std::string get_home_directory () /* {{{ */ {
   if (str && std::strlen (str)) {
     return str;
   }
-  
+
   #if HAVE_PWD_H
   setpwent ();
   auto user_id = getuid ();
@@ -70,7 +70,7 @@ std::string get_home_directory () /* {{{ */ {
   }
   endpwent ();
   #endif
-  
+
   return ".";
 }
 /* }}} */
@@ -80,7 +80,7 @@ std::string get_config_directory () /* {{{ */ {
   if (str && std::strlen (str)) {
     return str;
   }
-  
+
   // XDG: http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
   str = getenv ("XDG_CONFIG_HOME");
   if (str && std::strlen (str)) {
@@ -125,7 +125,7 @@ void parse_config () /* {{{ */ {
     default_config = true;
   }
   if (config_filename[0] != '/') {
-    config_filename = get_config_directory () + "/" + config_filename; 
+    config_filename = get_config_directory () + "/" + config_filename;
   }
 
   if (default_config) {
@@ -140,7 +140,7 @@ void parse_config () /* {{{ */ {
     if (!default_config) {
       std::cerr << "can not open config file '" << config_filename << "'\n";
       std::cerr << "diagnosis: " << e.what () << "\n";
-      
+
       exit (EXIT_FAILURE);
     } else {
       std::cout << "config '" << config_filename << "' not found. Using default config\n";
@@ -157,27 +157,27 @@ void parse_config () /* {{{ */ {
       conf.lookupValue ("default_profile", profile);
     } catch (const libconfig::SettingNotFoundException &) {}
   }
-  
+
   std::string prefix;
   if (profile.length () > 0) {
     prefix = profile + ".";
   } else {
     prefix = "";
   }
-  
+
   std::string config_directory;
   if (profile.length () > 0) {
     config_directory = get_config_directory () + "/" + profile + "/";
   } else {
     config_directory = get_config_directory () + "/";
   }
-    
+
   try {
     bool test_mode = false;
     conf.lookupValue (prefix + "test", test_mode);
     param.use_test_dc = test_mode;
   } catch (const libconfig::SettingNotFoundException &) {}
-  
+
   try {
     std::string s;
     conf.lookupValue (prefix + "config_directory", s);
@@ -187,49 +187,49 @@ void parse_config () /* {{{ */ {
       config_directory = get_config_directory () + "/" + s + "/";
     }
   } catch (const libconfig::SettingNotFoundException &) {}
-  
+
   //try {
   //  conf.lookupValue (prefix + "language_code", param.language_code);
   //} catch (const libconfig::SettingNotFoundException &) {}
-  
+
   try {
     conf.lookupValue (prefix + "use_file_db", param.use_file_db);
   } catch (const libconfig::SettingNotFoundException &) {}
-  
+
   //try {
   //  conf.lookupValue (prefix + "use_file_gc", param.use_file_gc);
   //} catch (const libconfig::SettingNotFoundException &) {}
-  
+
   //try {
   //  conf.lookupValue (prefix + "file_readable_names", param.file_readable_names);
   //} catch (const libconfig::SettingNotFoundException &) {}
-  
+
   try {
     conf.lookupValue (prefix + "use_secret_chats", param.use_secret_chats);
   } catch (const libconfig::SettingNotFoundException &) {}
-  
+
   try {
     conf.lookupValue (prefix + "use_chat_info_db", param.use_chat_info_db);
   } catch (const libconfig::SettingNotFoundException &) {}
-  
+
   try {
     conf.lookupValue (prefix + "use_message_db", param.use_chat_info_db);
   } catch (const libconfig::SettingNotFoundException &) {}
-  
+
   try {
     conf.lookupValue (prefix + "logname", logname);
     if (logname.length () > 0 && logname[0] != '/') {
       logname = config_directory + logname;
     }
   } catch (const libconfig::SettingNotFoundException &) {}
-  
+
   try {
     conf.lookupValue (prefix + "verbosity", verbosity);
   } catch (const libconfig::SettingNotFoundException &) {}
-  
+
   try {
     conf.lookupValue (prefix + "lua_script", lua_script);
-    if (lua_script.length () > 0 && lua_script[0] != '/') {
+    if (lua_script.length () > 0 && lua_script[0] != '/' && (lua_script[0] != '.' && (lua_script[1] != '/' || lua_script[1] == '.' && lua_script[2] == '/'))) {
       lua_script = config_directory + lua_script;
     }
   } catch (const libconfig::SettingNotFoundException &) {}
@@ -237,13 +237,13 @@ void parse_config () /* {{{ */ {
   std::cout << config_directory << "\n";
   param.database_directory = config_directory + "/data";
   param.files_directory = config_directory + "/files";
- 
+
   td::mkdir (config_directory, CONFIG_DIRECTORY_MODE).ensure ();
 }
 /* }}} */
 
 void usage () /* {{{ */ {
-  std::cout 
+  std::cout
   << "Usage: \n"
   << "  --verbosity/-v                       increase verbosity (0-ERROR 1-WARNIN 2-NOTICE 3+-DEBUG-levels)\n"
   << "  --config/-c                          config file name\n"
@@ -257,14 +257,14 @@ void usage () /* {{{ */ {
   << "  --exec/-e <commands>                 make commands end exit\n"
   << "  --help/-h                            prints this help\n"
   << "  --accept-any-tcp                     accepts tcp connections from any src (only loopback by default)\n"
-  << "  --bot/-b <hash>                      bot mode\n" 
+  << "  --bot/-b <hash>                      bot mode\n"
   << "  --phone/-u <phone>                   specify username (would not be asked during authorization)\n"
   << "  --login                              start in login mode\n"
   ;
 
   exit (1);
 }
-/* }}} */ 
+/* }}} */
 
 void args_parse (int argc, char *argv[]) {
   static struct option long_options[] = {
@@ -363,8 +363,8 @@ void termination_signal_handler (int signum) {
   void *buffer[255];
   const int calls = backtrace (buffer, sizeof (buffer) / sizeof (void *));
   backtrace_symbols_fd (buffer, calls, 1);
-  #endif 
-  
+  #endif
+
   exit (EXIT_FAILURE);
 }
 
@@ -392,7 +392,7 @@ int main (int argc, char *argv[]) {
   td::set_signal_handler (td::SignalType::Error, termination_signal_handler).ensure ();
   td::set_signal_handler (td::SignalType::Quit, termination_signal_handler).ensure ();
   td::ignore_signal (td::SignalType::Pipe).ensure ();
-  
+
   args_parse (argc, argv);
   parse_config ();
 
@@ -402,15 +402,15 @@ int main (int argc, char *argv[]) {
       usage ();
     }
   }
-  
+
   td::FileLog file_log;
   if (logname.length () > 0) {
     file_log.init(logname);
     td::log_interface = &file_log;
   }
-      
+
   SET_VERBOSITY_LEVEL(VERBOSITY_NAME(FATAL) + verbosity);
-  
+
   main_loop ();
 
   return 0;
