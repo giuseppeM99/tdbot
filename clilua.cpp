@@ -13,7 +13,7 @@ void parse_json (lua_State *L, json &res) {
     return;
   } else if (lua_type (L, -1) == LUA_TNUMBER) {
     auto x = lua_tonumber (L, -1);
-    auto x64 = static_cast<td::int64>(x);
+    auto x64 = lua_tointeger (L, -1);
     if (x == static_cast<double>(x64)) {
       res = x64;
     } else {
@@ -114,6 +114,15 @@ void push_json (lua_State *L, json &j) {
   }
 }
 
+void push_error(auto &err, int a1, int a2)
+{
+    json jerr = json::object();
+    jerr["@type"] = "error";
+    jerr["code"] = err.code();
+    jerr["message"] = err.public_message();
+    CliLua::instance_->result(jerr.dump(), a1, a2);
+}
+
 int lua_parse_function (lua_State *L) {
   if (lua_gettop (L) != 3) {
     lua_pushboolean (L, 0);
@@ -145,13 +154,17 @@ int lua_parse_function (lua_State *L) {
       lua_pushboolean (L, 1);
       return 1;
     } else {
-      LOG(ERROR) << "FAILED TO PARSE LUA: " << r.move_as_error () << "\n";
+      auto err = r.move_as_error ();
+      LOG(ERROR) << "FAILED TO PARSE LUA: " << err << "\n";
+      push_error(err, a1, a2);
       lua_pushboolean (L, 0);
       return 1;
     }
   }
 
-  LOG(ERROR) << "FAILED TO PARSE LUA: " << res.move_as_error () << "\n";
+  auto err = res.move_as_error ();
+  LOG(ERROR) << "FAILED TO PARSE LUA: " << err << "\n";
+  push_error(err, a1, a2);
 
   lua_pushboolean (L, 0);
   return 1;
